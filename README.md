@@ -42,11 +42,11 @@ npm install
 Create a `.env` file in the root directory:
 ```bash
 # Clerk Keys (from https://dashboard.clerk.com)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your-clerk-publishable-key"
+CLERK_SECRET_KEY="your-clerk-secret-key"
 
 # OpenAI API Key (from https://platform.openai.com)
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY="your-openai-api-key"
 
 # Database Connection (PostgreSQL connection URL)
 DATABASE_URL="postgresql://neondb_owner:YOUR_PASSWORD@ep-blue-cloud-a2xyz.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
