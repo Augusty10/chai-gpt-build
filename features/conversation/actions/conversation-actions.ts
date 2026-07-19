@@ -156,7 +156,7 @@ export async function createBranch(
     });
 
     // Find the index of the message we are branching from
-    const branchPointIndex = parentMessages.findIndex((msg) => msg.id === messageId);
+    const branchPointIndex = parentMessages.findIndex((msg: any) => msg.id === messageId);
     if (branchPointIndex === -1) {
         throw new Error("Branch point message not found in conversation");
     }
