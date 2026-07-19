@@ -259,7 +259,7 @@ export async function listBranches(conversationId: string): Promise<Conversation
     // Iteratively expand descendants set
     while (addedNew) {
         addedNew = false;
-        for (const convo of allUserConversations) {
+        for (const convo of allUserConversations as any[]) {
             if (convo.parentId && branchFamily.has(convo.parentId) && !branchFamily.has(convo.id)) {
                 branchFamily.add(convo.id);
                 addedNew = true;
@@ -268,9 +268,9 @@ export async function listBranches(conversationId: string): Promise<Conversation
     }
 
     // Filter conversations to only include members of this branch family
-    return allUserConversations
-        .filter((convo) => branchFamily.has(convo.id))
-        .map((convo) => ({
+    return (allUserConversations as any[])
+        .filter((convo: any) => branchFamily.has(convo.id))
+        .map((convo: any) => ({
             id: convo.id,
             title: convo.title,
             parentId: convo.parentId,
