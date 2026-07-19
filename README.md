@@ -30,7 +30,7 @@ ChaiGPT is a premium, next-generation AI chat application built with **Next.js 1
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### 1. Clone & Install Dependencies
 Clone the repository and install the npm packages:
