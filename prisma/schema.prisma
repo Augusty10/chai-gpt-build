@@ -26,18 +26,22 @@ model User {
 }
 
 model Conversation {
-  id            String   @id @default(cuid())
-  userId        String
-  title         String   @default("New Chat")
-  model         String? // e.g. openai/gpt-4.1 — per-thread model override
-  systemPrompt  String?  @db.Text
-  isPinned      Boolean  @default(false)
-  isArchived    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastMessageAt DateTime @default(now())
+  id                    String   @id @default(cuid())
+  userId                String
+  title                 String   @default("New Chat")
+  model                 String? // e.g. openai/gpt-4.1 — per-thread model override
+  systemPrompt          String?  @db.Text
+  isPinned              Boolean  @default(false)
+  isArchived            Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  lastMessageAt         DateTime @default(now())
+  parentId              String?
+  branchedFromMessageId String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent Conversation? @relation("ConversationBranches", fields: [parentId], references: [id], onDelete: SetNull)
+  branches Conversation[] @relation("ConversationBranches")
 
   messages Message[]
 

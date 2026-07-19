@@ -132,3 +132,151 @@ export async function deleteConversation(conversationId: string) {
     revalidatePath("/");
     return { id: conversationId };
 }
+
+/**
+ * Creates a branched conversation split off from a specific message in a parent conversation.
+ * Clones all message history up to and including the target message.
+ *
+ * @param conversationId - The parent conversation ID.
+ * @param messageId - The message ID where the branching occurs.
+ * @param title - Optional title for the new branch.
+ */
+export async function createBranch(
+    conversationId: string,
+    messageId: string,
+    title?: string
+) {
+    const user = await requireUser();
+    const parent = await assertOwnsConversation(conversationId, user.id);
+
+    // Fetch all messages in the parent conversation
+    const parentMessages = await prisma.message.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: "asc" },
+    });
+
+    // Find the index of the message we are branching from
+    const branchPointIndex = parentMessages.findIndex((msg) => msg.id === messageId);
+    if (branchPointIndex === -1) {
+        throw new Error("Branch point message not found in conversation");
+    }
+
+    // Keep messages up to and including the split message
+    const messagesToClone = parentMessages.slice(0, branchPointIndex + 1);
+
+    // Generate a default title if none is provided
+    const branchTitle = title?.trim() || `${parent.title} (Branch)`;
+
+    // Create the new branched conversation
+    const branchedConversation = await prisma.conversation.create({
+        data: {
+            userId: user.id,
+            title: branchTitle,
+            parentId: conversationId,
+            branchedFromMessageId: messageId,
+            model: parent.model,
+            systemPrompt: parent.systemPrompt,
+        },
+    });
+
+    // Clone the message records
+    for (const msg of messagesToClone) {
+        await prisma.message.create({
+            data: {
+                conversationId: branchedConversation.id,
+                role: msg.role,
+                status: msg.status,
+                content: msg.content,
+                parts: msg.parts ?? undefined,
+                metadata: msg.metadata ?? undefined,
+                createdAt: msg.createdAt, // Preserve original timestamps for sequence consistency
+            },
+        });
+    }
+
+    revalidatePath("/");
+    return branchedConversation;
+}
+
+/**
+ * Interface representing a branch navigation item.
+ */
+export type ConversationBranchItem = {
+    id: string;
+    title: string;
+    parentId: string | null;
+    branchedFromMessageId: string | null;
+    createdAt: Date;
+    lastMessageAt: Date;
+    isActive: boolean;
+};
+
+/**
+ * Lists all conversations related in the branching tree of a conversation.
+ * It traverses up to find the root parent, then fetches all descendant branches.
+ *
+ * @param conversationId - The active conversation ID.
+ */
+export async function listBranches(conversationId: string): Promise<ConversationBranchItem[]> {
+    const user = await requireUser();
+    
+    // Validate ownership
+    await assertOwnsConversation(conversationId, user.id);
+
+    // 1. Traverse up parent links to find the absolute root conversation ID
+    let rootId = conversationId;
+    let current = await prisma.conversation.findUnique({
+        where: { id: rootId },
+        select: { id: true, parentId: true },
+    });
+
+    while (current && current.parentId) {
+        rootId = current.parentId;
+        current = await prisma.conversation.findUnique({
+            where: { id: rootId },
+            select: { id: true, parentId: true },
+        });
+    }
+
+    // 2. Fetch all conversations belonging to the user that are part of this branching family.
+    const allUserConversations = await prisma.conversation.findMany({
+        where: { userId: user.id, isArchived: false },
+        orderBy: { createdAt: "asc" },
+        select: {
+            id: true,
+            title: true,
+            parentId: true,
+            branchedFromMessageId: true,
+            createdAt: true,
+            lastMessageAt: true,
+        },
+    });
+
+    // Helper to find all descendants of a given ID in the list
+    const branchFamily = new Set<string>([rootId]);
+    let addedNew = true;
+    
+    // Iteratively expand descendants set
+    while (addedNew) {
+        addedNew = false;
+        for (const convo of allUserConversations) {
+            if (convo.parentId && branchFamily.has(convo.parentId) && !branchFamily.has(convo.id)) {
+                branchFamily.add(convo.id);
+                addedNew = true;
+            }
+        }
+    }
+
+    // Filter conversations to only include members of this branch family
+    return allUserConversations
+        .filter((convo) => branchFamily.has(convo.id))
+        .map((convo) => ({
+            id: convo.id,
+            title: convo.title,
+            parentId: convo.parentId,
+            branchedFromMessageId: convo.branchedFromMessageId,
+            createdAt: convo.createdAt,
+            lastMessageAt: convo.lastMessageAt,
+            isActive: convo.id === conversationId,
+        }));
+}
