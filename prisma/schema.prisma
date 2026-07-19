@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
@@ -30,7 +30,7 @@ model Conversation {
   userId                String
   title                 String   @default("New Chat")
   model                 String? // e.g. openai/gpt-4.1 — per-thread model override
-  systemPrompt          String?  @db.Text
+  systemPrompt          String?
   isPinned              Boolean  @default(false)
   isArchived            Boolean  @default(false)
   createdAt             DateTime @default(now())
@@ -45,8 +45,8 @@ model Conversation {
 
   messages Message[]
 
-  @@index([userId, lastMessageAt(sort: Desc)])
-  @@index([userId, isPinned, lastMessageAt(sort: Desc)])
+  @@index([userId, lastMessageAt])
+  @@index([userId, isPinned, lastMessageAt])
 }
 
 enum MessageRole {
@@ -68,7 +68,7 @@ model Message {
   conversationId String
   role MessageRole
    status         MessageStatus @default(COMPLETE)
-   content        String @db.Text
+   content        String
    parts          Json?  // 
    metadata       Json? 
 
@@ -77,6 +77,6 @@ model Message {
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
 
-   @@index([conversationId, createdAt(sort: Desc)])
+   @@index([conversationId, createdAt])
    
 }
